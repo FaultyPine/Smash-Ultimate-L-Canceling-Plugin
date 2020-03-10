@@ -1,3 +1,5 @@
 #misc files
 .vscode
 build
+code-mod-framework
+*.elf
