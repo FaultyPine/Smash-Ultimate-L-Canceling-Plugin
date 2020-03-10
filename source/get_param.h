@@ -22,9 +22,28 @@ using namespace lib;
 
 u64 get_param_float_prev = 0;
 extern bool successfullcancel[8];
-float lcancelparams(u64& boma, u64& param_type, u64& param_hash){
-    //int status_kind = StatusModule::status_kind(boma);
 
+/*
+FOR DOING GET_PARAM REPLACEMENTS:
+normally, you'd check for params in common and such with 
+ if(param_type == hash40("name_of_prc_file")){
+     if(param_hash == hash40("name_of_param_to_check")){
+         return customValue;
+     }
+ }
+ with fighter_param its a bit different. If you want to change a param in fighter_param, do
+ if(param_hash == 0){
+     if(param_type == hash40("name_of_param_to_check")){
+         return customValue;
+     }
+ }
+ if you want fighter-specific params for fighter_param stuff, check with fighter_kind
+
+ for different param_types, see arthurs message in the ultimate modding discord here:
+ https://discordapp.com/channels/447823426061860879/516439596322652161/631939317551333377
+*/
+
+float lcancelparams(u64& boma, u64& param_type, u64& param_hash){ 
     if(param_hash == 0){
         if(
             param_type == hash40("landing_attack_air_frame_n") ||
@@ -64,7 +83,9 @@ float get_param_float_replace(u64 module_accessor, u64 param_type, u64 param_has
     u8 kind = (u8)(*(u32*)(module_accessor + 8) >> 28);
     //custom param checks here
     if(kind == BATTLE_OBJECT_CATEGORY_FIGHTER){
-        
+        /*char str[20] = "";
+            snprintf(str, 256, "%x", load_module_impl(work_module, 0x240));
+            print_string(boma, str);*/
         
         float mul = lcancelparams(module_accessor, param_type, param_hash);
         float universalmul = 1.8;
@@ -87,17 +108,6 @@ float get_param_float_replace(u64 module_accessor, u64 param_type, u64 param_has
     }
     return get_param_float(work_module, param_type, param_hash);
 }
-
-/*
-int get_param_int_replace(u64 module_accessor, u64 param_type, u64 param_hash) {
-    u64 work_module = load_module(module_accessor, 0x50);
-    int (*get_param_int)(u64, u64, u64) = (int (*)(u64, u64, u64)) load_module_impl(work_module, 0x220);
-    //custom param checks here
-
-    
-    return get_param_int(work_module, param_type, param_hash);
-}
-*/
 
 void get_param_replaces(){
     SaltySD_function_replace_sym_check_prev("_ZN3app8lua_bind32WorkModule__get_param_float_implEPNS_26BattleObjectModuleAccessorEmm", (u64)&get_param_float_replace, get_param_float_prev);
