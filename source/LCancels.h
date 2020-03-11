@@ -44,7 +44,6 @@ int get_player_number(u64 boma){
 void l_cancels(u64& boma, int& status_kind){
     if(status_kind == FIGHTER_STATUS_KIND_ATTACK_AIR){
         if(ControlModule::check_button_on_trriger(boma, CONTROL_PAD_BUTTON_GUARD) || ControlModule::check_button_on_trriger(boma, CONTROL_PAD_BUTTON_CATCH)){
-            ControlModule::clear_command(boma, true);
             successfullcancel[get_player_number(boma)] = true;
             lcancelframe[get_player_number(boma)] = (int)MotionModule::frame(boma);
         }
@@ -53,6 +52,7 @@ void l_cancels(u64& boma, int& status_kind){
         }
     }
 }
+bool ground_fix = false; //whether or not to use ground_correct_kind fix for calc's mods
 //init_settings is called at the very beginning of a transition to a new status
 u64 __init_settings(u64 boma, u64 situation_kind, int param_3, u64 param_4, u64 param_5,bool param_6,int param_7,int param_8,int param_9,int param_10) {
     // Call other function replacement code if this function has been replaced
@@ -60,44 +60,45 @@ u64 __init_settings(u64 boma, u64 situation_kind, int param_3, u64 param_4, u64 
     if (prev_replace){
         prev_replace(boma, situation_kind, param_3, param_4, param_5, param_6, param_7, param_8, param_9, param_10);
     }
+
   	u64 status_module = load_module(boma, 0x40);
-    u64 fix = param_4;
-  	u64 (*init_settings)(u64, u64, u64, u64, u64, u64, u64, u64) =
-	  (u64 (*)(u64, u64, u64, u64, u64, u64, u64, u64))(load_module_impl(status_module, 0x1c8));
+  	u64 (*init_settings)(u64, u64, int, u64, u64, bool, int, int, int, int) =
+	  (u64 (*)(u64, u64, int, u64, u64, bool, int, int, int, int))(load_module_impl(status_module, 0x1c8));
 	u8 category = (u8)(*(u32*)(boma + 8) >> 28);
     u64 status_kind = (u64)StatusModule::status_kind(boma);
 
-
 	if (category == BATTLE_OBJECT_CATEGORY_FIGHTER) {
-
         //ground_correct_kind fix (for calc's ecb mod/HDR)
-        switch (status_kind) {
-			case 0x0:
-			case 0x3:
-			case 0x6:
-			case 0x7:
-			case 0x11:
-			case 0x12:
-			case 0x13:
-			case 0x14:
-			case 0x15:
-			case 0x16:
-			case 0x17:
-			case 0x18:
-			case 0x19:
-			case 0x1a:
-			case 0x1b:
-			case 0x1c:
-			case 0x1e:
-			case 0x22:
-			case 0x23:
-			case 0x7e:
-			case 0x7f:
-					fix = 1;
-					break;
-		}
-        param_4 = fix;
-        
+        if(ground_fix){
+            u64 fix = param_4;
+            switch (status_kind) {
+                case 0x0:
+                case 0x3:
+                case 0x6:
+                case 0x7:
+                case 0x11:
+                case 0x12:
+                case 0x13:
+                case 0x14:
+                case 0x15:
+                case 0x16:
+                case 0x17:
+                case 0x18:
+                case 0x19:
+                case 0x1a:
+                case 0x1b:
+                case 0x1c:
+                case 0x1e:
+                case 0x22:
+                case 0x23:
+                case 0x7e:
+                case 0x7f:
+                        fix = 1;
+                        break;
+            }
+            param_4 = fix;
+        }
+
 
         //L-Cancel variable resets
         if(status_kind != (u64)FIGHTER_STATUS_KIND_ATTACK_AIR && status_kind != (u64)FIGHTER_STATUS_KIND_LANDING_ATTACK_AIR){
@@ -105,9 +106,8 @@ u64 __init_settings(u64 boma, u64 situation_kind, int param_3, u64 param_4, u64 
             lcancelframe[get_player_number(boma)] = 0;
         }
 
-        // Successful L-Cancel color flash indicator (also some hitboxes were glitchy when canceling... so i just got rid of em  ¯\_(ツ)_/¯  )
+        // Successful L-Cancel color flash indicator
         if(successfullcancel[get_player_number(boma)] && status_kind == (u64)FIGHTER_STATUS_KIND_LANDING_ATTACK_AIR){
-            AttackModule::clear_all(boma);
             temp_global_frame[get_player_number(boma)] = global_frame_counter;
             Vector4f colorflashvec1 = { /* Red */ .x = 1.0, /* Green */ .y = 1.0, /* Blue */ .z = 1.0, /* Alpha? */ .w = 0.1}; // setting this and the next vector's .w to 1 seems to cause a ghostly effect
             Vector4f colorflashvec2 = { /* Red */ .x = 1.0, /* Green */ .y = 1.0, /* Blue */ .z = 1.0, /* Alpha? */ .w = 0.1};
@@ -117,7 +117,7 @@ u64 __init_settings(u64 boma, u64 situation_kind, int param_3, u64 param_4, u64 
 	}
   //ORIGINAL CALL
   return init_settings(status_module, situation_kind, param_3,
-  					   param_4, param_5, param_6, param_7, param_8);
+  					   param_4, param_5, param_6, param_7, param_8, param_9, param_10);
 }
 
 //get_command_flag_cat is run somewhere between 4-5 times PER FRAME (is originally intended to be used to get controller input)

@@ -111,7 +111,6 @@ float get_param_float_replace(u64 module_accessor, u64 param_type, u64 param_has
 
 void get_param_replaces(){
     SaltySD_function_replace_sym_check_prev("_ZN3app8lua_bind32WorkModule__get_param_float_implEPNS_26BattleObjectModuleAccessorEmm", (u64)&get_param_float_replace, get_param_float_prev);
-    //SaltySD_function_replace_sym("_ZN3app8lua_bind30WorkModule__get_param_int_implEPNS_26BattleObjectModuleAccessorEmm", (u64)&get_param_int_replace);
 }
 
 
