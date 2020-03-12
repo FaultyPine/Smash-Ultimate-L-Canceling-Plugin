@@ -31,6 +31,7 @@ int currframe = 0;
 int temp_global_frame[8] = {0,0,0,0,0,0,0,0};
 int lcancelframe[8] = {0,0,0,0,0,0,0,0};
 bool successfullcancel[8] = {false, false, false, false, false, false, false, false};
+bool color_flash_flag[8] = {false, false, false, false, false, false, false, false}; //handles getting hit while l-canceling
 //frames after start of the transition to landing lag that determines when to cancel the color flash effect... 
 //also used for the calculation of when you are locked out of shield, grab, spotdodge, and rolls
 int cancellag = 15;
@@ -52,7 +53,7 @@ void l_cancels(u64& boma, int& status_kind){
         }
     }
 }
-bool ground_fix = false; //whether or not to use ground_correct_kind fix for calc's mods
+bool ground_fix = true; //whether or not to use ground_correct_kind fix for calc's mods
 //init_settings is called at the very beginning of a transition to a new status
 u64 __init_settings(u64 boma, u64 situation_kind, int param_3, u64 param_4, u64 param_5,bool param_6,int param_7,int param_8,int param_9,int param_10) {
     // Call other function replacement code if this function has been replaced
@@ -99,6 +100,13 @@ u64 __init_settings(u64 boma, u64 situation_kind, int param_3, u64 param_4, u64 
             param_4 = fix;
         }
 
+        //Handles getting hit out of an l-cancel
+        bool statusdamaged = status_kind == (u64)FIGHTER_STATUS_KIND_DAMAGE_FLY || status_kind == (u64)FIGHTER_STATUS_KIND_DAMAGE || status_kind == (u64)FIGHTER_STATUS_KIND_DAMAGE_AIR || status_kind == (u64)FIGHTER_STATUS_KIND_DAMAGE_FLY_METEOR;
+        if( statusdamaged  && color_flash_flag){
+            ColorBlendModule::cancel_main_color(boma, 0);
+            color_flash_flag[get_player_number(boma)] = false;
+        }
+
 
         //L-Cancel variable resets
         if(status_kind != (u64)FIGHTER_STATUS_KIND_ATTACK_AIR && status_kind != (u64)FIGHTER_STATUS_KIND_LANDING_ATTACK_AIR){
@@ -112,6 +120,7 @@ u64 __init_settings(u64 boma, u64 situation_kind, int param_3, u64 param_4, u64 
             Vector4f colorflashvec1 = { /* Red */ .x = 1.0, /* Green */ .y = 1.0, /* Blue */ .z = 1.0, /* Alpha? */ .w = 0.1}; // setting this and the next vector's .w to 1 seems to cause a ghostly effect
             Vector4f colorflashvec2 = { /* Red */ .x = 1.0, /* Green */ .y = 1.0, /* Blue */ .z = 1.0, /* Alpha? */ .w = 0.1};
             ColorBlendModule::set_main_color(boma, &colorflashvec1, &colorflashvec2, 0.7, 0.2, 10, true);
+            color_flash_flag[get_player_number(boma)] = true;
         }
 
 	}
@@ -146,6 +155,7 @@ int get_command_flag_cat_replace(u64 boma, int category) {
 
         if( (global_frame_counter - temp_global_frame[get_player_number(boma)]) > cancellag &&  (global_frame_counter - temp_global_frame[get_player_number(boma)]) < cancellag+4 ){ //deletes color flash if frame is within [cancellag, cancellag+4] range... -> super un-elegant solution, im doing this late at night lol
             ColorBlendModule::cancel_main_color(boma, 0);
+            color_flash_flag[get_player_number(boma)] = false;
         }
 
         l_cancels(boma, status_kind);
