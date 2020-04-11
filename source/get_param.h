@@ -43,7 +43,7 @@ normally, you'd check for params in common and such with
  https://discordapp.com/channels/447823426061860879/516439596322652161/631939317551333377
 */
 
-float lcancelparams(u64& boma, u64& param_type, u64& param_hash){ 
+bool lcancelparams(u64& boma, u64& param_type, u64& param_hash){ 
     if(param_hash == 0){
         if(
             param_type == hash40("landing_attack_air_frame_n") ||
@@ -52,12 +52,10 @@ float lcancelparams(u64& boma, u64& param_type, u64& param_hash){
             param_type == hash40("landing_attack_air_frame_f") ||
             param_type == hash40("landing_attack_air_frame_b")
         ){
-            if(successfullcancel[get_player_number(boma)]){
-                return 2.0; //factor to divide original LL by
-            }
+                return true;
         }
     }
-    return 1.0;
+    return false;
 }
 
 
@@ -70,39 +68,35 @@ Universally, all base landing lag is multiplied by "universalmul". If you succes
 */
 
 
-bool option_A_B = false;
+bool option_A_B = true;
 
-float get_param_float_replace(u64 module_accessor, u64 param_type, u64 param_hash) { //weird for fighter_param's... check param_hash against 0 and param_type for "scale" or whatever param
+float get_param_float_replace(u64 boma, u64 param_type, u64 param_hash) { //weird for fighter_param's... check param_hash against 0 and param_type for "scale" or whatever param
     //prev replace
     float (*prev_replace)(u64, u64, u64) = (float (*)(u64, u64, u64)) get_param_float_prev;
     if (prev_replace)
-        prev_replace(module_accessor, param_type, param_hash);
+        prev_replace(boma, param_type, param_hash);
     
-    u64 work_module = load_module(module_accessor, 0x50);
+    u64 work_module = load_module(boma, 0x50);
     float (*get_param_float)(u64, u64, u64) = (float (*)(u64, u64, u64)) load_module_impl(work_module, 0x240);
-    u8 kind = (u8)(*(u32*)(module_accessor + 8) >> 28);
+    u8 kind = (u8)(*(u32*)(boma + 8) >> 28);
     //custom param checks here
-    if(kind == BATTLE_OBJECT_CATEGORY_FIGHTER){
-        /*char str[20] = "";
-            snprintf(str, 256, "%x", load_module_impl(work_module, 0x240));
-            print_string(boma, str);*/
-        
-        float mul = lcancelparams(module_accessor, param_type, param_hash);
-        float universalmul = 1.8;
-        if(successfullcancel[get_player_number(module_accessor)]){
+    if(kind == BATTLE_OBJECT_CATEGORY_FIGHTER && lcancelparams(boma, param_type, param_hash)){ //is a fighter and accessing LL params
 
-            if(!option_A_B){ // option a.... halving LL on successful cancel
-                return get_param_float(work_module, param_type, param_hash) / mul;
-            }
-            else{ //option b.... all LL * universalmul   unless successful cancel, then return base LL
-                if(mul > 1){
-                    return get_param_float(work_module, param_type, param_hash);
-                }
-                else{
-                    return trunc(get_param_float(work_module, param_type, param_hash) * universalmul);
-                }
-            }
+        if(!option_A_B){ // option a.... halving LL on successful cancel
+            if(successfullcancel[get_player_number(boma)])
+                return get_param_float(work_module, param_type, param_hash) / 2; //if l-canceled, divide LL by 2
+            else
+                return get_param_float(work_module, param_type, param_hash); //otherwise, return normal LL
         }
+
+        else{ //option b.... all LL * universalmul   unless successful cancel, then return base LL
+
+            if(successfullcancel[get_player_number(boma)])
+                return get_param_float(work_module, param_type, param_hash); //if l-canceled, return normal LL
+            else
+                return get_param_float(work_module, param_type, param_hash) * 2; //otherwise return LL * 2
+        }
+
 
 
     }
