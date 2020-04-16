@@ -53,7 +53,7 @@ void l_cancels(u64& boma, int& status_kind){
         }
     }
 }
-bool ground_fix = false; //whether or not to use ground_correct_kind fix for calc's mods
+bool ground_fix = true; //whether or not to use ground_correct_kind fix for calc's mods
 //init_settings is called at the very beginning of a transition to a new status
 u64 __init_settings(u64 boma, u64 situation_kind, int param_3, u64 param_4, u64 param_5,bool param_6,int param_7,int param_8,int param_9,int param_10) {
     // Call other function replacement code if this function has been replaced
@@ -112,12 +112,8 @@ u64 __init_settings(u64 boma, u64 situation_kind, int param_3, u64 param_4, u64 
             temp_global_frame[get_player_number(boma)] = global_frame_counter;
             Vector4f colorflashvec1 = { /* Red */ .x = 1.0, /* Green */ .y = 1.0, /* Blue */ .z = 1.0, /* Alpha? */ .w = 0.1}; // setting this and the next vector's .w to 1 seems to cause a ghostly effect
             Vector4f colorflashvec2 = { /* Red */ .x = 1.0, /* Green */ .y = 1.0, /* Blue */ .z = 1.0, /* Alpha? */ .w = 0.1};
-            ColorBlendModule::set_main_color(boma, &colorflashvec1, &colorflashvec2, 0.7, 0.2, 15, true); //int here is opacity
+            ColorBlendModule::set_main_color(boma, &colorflashvec1, &colorflashvec2, 0.7, 0.2, 60, true); //int here is opacity
             color_flash_flag[get_player_number(boma)] = true;
-        }
-        if(status_kind != (u64)FIGHTER_STATUS_KIND_LANDING_ATTACK_AIR && color_flash_flag[get_player_number(boma)]){
-            ColorBlendModule::cancel_main_color(boma, 0);
-            color_flash_flag[get_player_number(boma)] = false;
         }
 
 	}
@@ -150,7 +146,7 @@ int get_command_flag_cat_replace(u64 boma, int category) {
             global_frame_counter += 1;
         }
 
-        if( (global_frame_counter - temp_global_frame[get_player_number(boma)]) > cancellag &&  (global_frame_counter - temp_global_frame[get_player_number(boma)]) < cancellag+4 ){ //deletes color flash if frame is within [cancellag, cancellag+4] range... -> super un-elegant solution, im doing this late at night lol
+        if(status_kind != FIGHTER_STATUS_KIND_LANDING_ATTACK_AIR && color_flash_flag[get_player_number(boma)]){
             ColorBlendModule::cancel_main_color(boma, 0);
             color_flash_flag[get_player_number(boma)] = false;
         }
@@ -160,6 +156,7 @@ int get_command_flag_cat_replace(u64 boma, int category) {
     return cat;
 }
 
+bool disabletransterms[8] = {false, false, false, false, false, false, false, false};
 //this func is a bool check for if a character is allowed to transition to specified status. returning false here means that doing that input will result in nothing
 bool is_enable_transition_term_replace(u64 boma, int flag) {
     // Call other function replacement code if this function has been replaced
@@ -170,11 +167,11 @@ bool is_enable_transition_term_replace(u64 boma, int flag) {
     // Continue with our current function replacement
 
     //disabling shield/grab/spotdodges/rolls for a few frames after l-cancel to prevent accidental inputs after l-canceling
-    bool disabletransterms = //disables shield, grabs, spotdodges, and rolls for a few frames
+    disabletransterms[get_player_number(boma)] = //disables shield, grabs, spotdodges, and rolls for a few frames
     flag == FIGHTER_STATUS_TRANSITION_TERM_ID_CONT_GUARD_ON || flag == FIGHTER_STATUS_TRANSITION_TERM_ID_CONT_CATCH || 
     flag == FIGHTER_STATUS_TRANSITION_TERM_ID_CONT_ESCAPE || flag == FIGHTER_STATUS_TRANSITION_TERM_ID_CONT_ESCAPE_F || flag == FIGHTER_STATUS_TRANSITION_TERM_ID_CONT_ESCAPE_B;
     
-    if( disabletransterms && (global_frame_counter - temp_global_frame[get_player_number(boma)]) <= cancellag)
+    if( disabletransterms[get_player_number(boma)] && (global_frame_counter - temp_global_frame[get_player_number(boma)]) <= cancellag)
         return false;
     
     

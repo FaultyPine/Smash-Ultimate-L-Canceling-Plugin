@@ -68,7 +68,7 @@ Universally, all base landing lag is multiplied by "universalmul". If you succes
 */
 
 
-bool option_A_B = true;
+bool option_A_B = false;
 
 float get_param_float_replace(u64 boma, u64 param_type, u64 param_hash) { //weird for fighter_param's... check param_hash against 0 and param_type for "scale" or whatever param
     //prev replace
