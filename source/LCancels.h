@@ -26,7 +26,7 @@ u64 prev_get_command_flag_cat = 0;
 u64 init_settings_prev = 0;
 u64 prev_is_enable_transition_term = 0;
 
-int global_frame_counter = 0;
+int GLOBAL_FRAME_COUNT = 0;
 int currframe = 0;
 int temp_global_frame[8] = {0,0,0,0,0,0,0,0};
 int lcancelframe[8] = {0,0,0,0,0,0,0,0};
@@ -40,6 +40,7 @@ int cancellag = 15;
 int get_player_number(u64 boma){
 		return WorkModule::get_int(boma, FIGHTER_INSTANCE_WORK_ID_INT_ENTRY_ID);
 }
+extern int get_kind(u64) asm("_ZN3app7utility8get_kindEPKNS_26BattleObjectModuleAccessorE") LINKABLE;
 
 //checks if you've successfully l-canceled an aerial
 void l_cancels(u64& boma, int& status_kind){
@@ -66,7 +67,7 @@ u64 __init_settings(u64 boma, u64 situation_kind, int param_3, u64 param_4, u64 
   	u64 (*init_settings)(u64, u64, int, u64, u64, bool, int, int, int, int) =
 	  (u64 (*)(u64, u64, int, u64, u64, bool, int, int, int, int))(load_module_impl(status_module, 0x1c8));
 	u8 category = (u8)(*(u32*)(boma + 8) >> 28);
-    u64 status_kind = (u64)StatusModule::status_kind(boma);
+    int status_kind = StatusModule::status_kind(boma);
 
 	if (category == BATTLE_OBJECT_CATEGORY_FIGHTER) {
         //ground_correct_kind fix (for calc's ecb mod/HDR)
@@ -99,20 +100,29 @@ u64 __init_settings(u64 boma, u64 situation_kind, int param_3, u64 param_4, u64 
             }
             param_4 = fix;
         }
-
+        if(status_kind == FIGHTER_STATUS_KIND_ENTRY){ //reset variables on match start
+            GLOBAL_FRAME_COUNT = 0;
+            currframe = 0;
+            for(int i = 0; i < 8; i++){
+                temp_global_frame[i] = 0;
+                lcancelframe[i] = 0;
+                successfullcancel[i] = false;
+                color_flash_flag[i] = false;
+            }
+        }
 
         //L-Cancel variable resets
-        if(status_kind != (u64)FIGHTER_STATUS_KIND_ATTACK_AIR && status_kind != (u64)FIGHTER_STATUS_KIND_LANDING_ATTACK_AIR){
+        if(status_kind != FIGHTER_STATUS_KIND_ATTACK_AIR && status_kind != FIGHTER_STATUS_KIND_LANDING_ATTACK_AIR){
             successfullcancel[get_player_number(boma)] = false;
             lcancelframe[get_player_number(boma)] = 0;
         }
 
         // Successful L-Cancel color flash indicator
-        if(successfullcancel[get_player_number(boma)] && status_kind == (u64)FIGHTER_STATUS_KIND_LANDING_ATTACK_AIR){
-            temp_global_frame[get_player_number(boma)] = global_frame_counter;
+        if(successfullcancel[get_player_number(boma)] && status_kind == FIGHTER_STATUS_KIND_LANDING_ATTACK_AIR && !color_flash_flag[get_player_number(boma)] && get_kind(boma) != FIGHTER_KIND_NANA){
+            temp_global_frame[get_player_number(boma)] = GLOBAL_FRAME_COUNT;
             Vector4f colorflashvec1 = { /* Red */ .x = 1.0, /* Green */ .y = 1.0, /* Blue */ .z = 1.0, /* Alpha? */ .w = 0.1}; // setting this and the next vector's .w to 1 seems to cause a ghostly effect
             Vector4f colorflashvec2 = { /* Red */ .x = 1.0, /* Green */ .y = 1.0, /* Blue */ .z = 1.0, /* Alpha? */ .w = 0.1};
-            ColorBlendModule::set_main_color(boma, &colorflashvec1, &colorflashvec2, 0.7, 0.2, 60, true); //int here is opacity
+            ColorBlendModule::set_main_color(boma, &colorflashvec1, &colorflashvec2, 0.7, 0.2, 25, true); //int here is opacity
             color_flash_flag[get_player_number(boma)] = true;
         }
 
@@ -137,16 +147,12 @@ int get_command_flag_cat_replace(u64 boma, int category) {
     if(BOcategory == BATTLE_OBJECT_CATEGORY_FIGHTER){
 
         //Global Frame Counter
-        if(status_kind == FIGHTER_STATUS_KIND_ENTRY){
-            global_frame_counter = 0;
-            currframe = 0;
-        }
-        if((int)MotionModule::frame(boma) != currframe){ //code in here is run once per frame
+        if((int)MotionModule::frame(boma) != currframe){ //code in here is run once per frame.... (unless theres a set_rate applied to the current move ;_; )
             currframe = (int)MotionModule::frame(boma);
-            global_frame_counter += 1;
+            GLOBAL_FRAME_COUNT += 1;
         }
 
-        if(status_kind != FIGHTER_STATUS_KIND_LANDING_ATTACK_AIR && color_flash_flag[get_player_number(boma)]){
+        if(status_kind != FIGHTER_STATUS_KIND_LANDING_ATTACK_AIR && color_flash_flag[get_player_number(boma)] && get_kind(boma) != FIGHTER_KIND_NANA){
             ColorBlendModule::cancel_main_color(boma, 0);
             color_flash_flag[get_player_number(boma)] = false;
         }
@@ -171,8 +177,9 @@ bool is_enable_transition_term_replace(u64 boma, int flag) {
     flag == FIGHTER_STATUS_TRANSITION_TERM_ID_CONT_GUARD_ON || flag == FIGHTER_STATUS_TRANSITION_TERM_ID_CONT_CATCH || 
     flag == FIGHTER_STATUS_TRANSITION_TERM_ID_CONT_ESCAPE || flag == FIGHTER_STATUS_TRANSITION_TERM_ID_CONT_ESCAPE_F || flag == FIGHTER_STATUS_TRANSITION_TERM_ID_CONT_ESCAPE_B;
     
-    if( disabletransterms[get_player_number(boma)] && (global_frame_counter - temp_global_frame[get_player_number(boma)]) <= cancellag)
+    if( disabletransterms[get_player_number(boma)] && (GLOBAL_FRAME_COUNT - temp_global_frame[get_player_number(boma)]) <= cancellag){
         return false;
+    }
     
     
     u64 work_module = load_module(boma, 0x50);
